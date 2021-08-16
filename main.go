@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 )
-
 var (
 	err         error
 	//定时任务的cron表达式
@@ -46,39 +45,16 @@ const (
 )
 
 
-//另一种机器人
-func main() {
-	c := cron.New() 
-	//定时任务
-	c.AddFunc(spec, func() {
-		cronTaskSendVideo()
-	})
-	log.Println("定时任务开启")
-	c.Start()
-	log.Println("bot开启")
-	b, err = tb.NewBot(tb.Settings{
-		Token: token,
-		Poller: &tb.Webhook{
-			Listen:  webhookPort,
-			MaxConnections: MaxConnections,
-			TLS: &tb.WebhookTLS{
-				Key:  serverKey,
-				Cert: serverCrt,
-			},
-			Endpoint: &tb.WebhookEndpoint{PublicURL: webhookUrl},
-		},
-	})
-
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
 
 	b.Handle("/start", func(m *tb.Message) {
 		b.Send(m.Sender, "向我发送91视频链接，获取视频")
 	})
 	b.Handle("/hello", func(m *tb.Message) {
 		b.Send(m.Sender, "Hello World!")
+	})
+	b.Handle("/revideo", func(m *tb.Message) {
+		b.Send(m.Sender, "cronTaskSendVideo!")
+		cronTaskSendVideo()
 	})
 	b.Handle(tb.OnText, func(m *tb.Message) {
 		text := m.Text
@@ -107,14 +83,30 @@ func controlSecPage(url string,chatId int64) {
 	parser := JsParser("./md2.js", "strencode2", findString)
 	parser = strings.Replace(parser, `<source src='`, "", -1)
 	parser = strings.Replace(parser, `' type='application/x-mpegURL'>`, "", -1)
+	if chatId != telegramId{
+		if parser=="" {
+			b.Send(&tb.Chat{
+				ID: chatId,
+			}, "请检查视频地址是否正确")
+			return
+		}
+		b.Send(&tb.Chat{
+			ID: chatId,
+		}, "视频真实地址："+parser)
+	}
+
 	log.Println(parser)
+
 	title := videoinfo.Title
 	log.Println("开始转换视频到mp4：" + title)
 
 	os.MkdirAll(title, 0755)
 
 	path := title + "/" + title + ".mp4"
-	videoinfo.Duration = BotUti.ConVtoMp4(parser, path)
+	videoinfo.Duration,err= BotUti.ConVtoMp4(parser, path)
+	if err != nil {
+		return
+	}
 	//生成缩略图
 	ffmpeg.Input(path).Output(title+"/"+title+".jpg", ffmpeg.KwArgs{"vframes": "1"}).OverWriteOutput().Run()
 
@@ -147,10 +139,10 @@ func controlSecPage(url string,chatId int64) {
 func sendVideo(filename string, videoinfo entity.VideoInfo,chatId int64) {
 	log.Println("发送视频:" + filename)
 	path := videoinfo.Title + "/" + filename
-
+	videoLen, _ := BotUti.VideoLen(path)
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
-		Duration: BotUti.VideoLen(path),
+		Duration: videoLen,
 		Caption: fmt.Sprintf(captionTemplate, videoinfo.Title, videoinfo.ScCount, videoinfo.Author),
 
 		Thumbnail: &tb.Photo{

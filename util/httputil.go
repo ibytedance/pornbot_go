@@ -65,6 +65,7 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 		log.Println("Run err : %v\n", err)
 		return videoInfo, err
 	}
+	chromedp.Stop()
 	//去除 空格
 	videoInfo.Title = strings.Replace(videoInfo.Title, " ", "", -1)
 	// 去除换行符

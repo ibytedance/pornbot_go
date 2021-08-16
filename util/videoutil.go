@@ -3,47 +3,66 @@ package BotUti
 import (
 	"encoding/json"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
+	"log"
 	"strconv"
+	"github.com/matryer/try"
 )
 
 //ConVtoMp4 转换为mp4格式
-func ConVtoMp4(videourl string, pathname string) int {
-	videoLen := VideoLen(videourl)
+func ConVtoMp4(videourl string, pathname string) (int,error) {
+	var videoLen int
+	try.Do(func(attempt int) (retry bool, err error) {
+		videoLen, err = VideoLen(videourl)
+		if err !=nil{
+			log.Println("Run error,重试 - ", err,"-",attempt,"次")
+		} else {
+			log.Println("Run ok - ", videoLen)
+		}
+		// 重试5次
+		return attempt < 5, err
+	})
+	
 	//大于四分钟 截取前10秒 -rw_timeout 5000000
 	args := ffmpeg.KwArgs{"c:v": "libx264", "threads": "2","rw_timeout":"10000000"}
 	if videoLen > 240 {
 		args = ffmpeg.KwArgs{"c:v": "libx264","threads": "2" ,"rw_timeout":"10000000","ss": "00:00:10"}
 	}
-	err := ffmpeg.Input(videourl).Output(pathname, args).OverWriteOutput().Run()
-	if err != nil {
-		panic(err)
-	}
-	return videoLen
+	err = try.Do(func(attempt int) (retry bool, err error) {
+		err = ffmpeg.Input(videourl).Output(pathname, args).OverWriteOutput().Run()
+		if err != nil {
+			log.Println("Run error 重试 -", attempt, ":", err)
+		} else {
+			log.Println("视频转换成功 ")
+		}
+		// 重试5次
+		return attempt < 5, err
+	})
+
+	return videoLen,err
 }
 
-
-
 //VideoLen 获取视频时长 单位 s
-func VideoLen(url string) int  {
+func VideoLen(url string) (int,error)  {
 	//获取视频信息
-	probe, err := ffmpeg.Probe(url)
+	args := ffmpeg.KwArgs{"rw_timeout":"10000000"}
+	probe, err := ffmpeg.Probe(url,args)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	var videoIf videoInfo
 	err = json.Unmarshal([]byte(probe), &videoIf)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	float, err := strconv.ParseFloat(videoIf.Format.Duration,64)
 	if err != nil {
-		return 0
+		return 0,err
 	}
-	return int(float)
+	return int(float),err
 }
 
 
-//ffmpeg获取的视频信息结构体
+
 type videoInfo struct {
 	Streams []Streams `json:"streams"`
 	Format Format `json:"format"`
