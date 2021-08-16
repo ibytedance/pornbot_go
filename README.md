@@ -128,6 +128,12 @@ const (
 ```
 go run main.go
 ```
+后台运行 来自 https://github.com/icattlecoder/godaemon
+```
+go build main.go
+./main -d=true
+```
+
 
 ### 测试
 
