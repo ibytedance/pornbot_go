@@ -61,12 +61,78 @@ debian10编译好的
 https://github.com/jw-star/myFigurebed/releases/download/1.00/gpac.tar.gz
 ```
 
+
+### 配置信息
+注意事项
+
+```
+
+1.只要设置了传出 webhook，您就无法使用getUpdates接收更新。
+2.要使用自签名证书，您需要使用证书参数上传您的公钥证书。请上传为 InputFile，发送字符串将不起作用。3. Webhooks当前支持的端口：443, 80, 88, 8443。
+
+```
+
+证书申请
+
+```
+
+curl  https://get.acme.sh | sh -s email=xxxxx@xxx.xxx
+
+
+export CF_Key="xxxxxx"
+
+export CF_Email="xxx@xxx.xxx"
+
+acme.sh   --issue   --dns dns_cf   -d xxxx.xxxx.com 
+//设置证书位置到项目下
+acme.sh  --installcert  -d  xxxx.xxxx.com     \
+        --key-file   /root/porn/server.key \
+        --fullchain-file /root/porn/server.crt
+
+```
+
+
+```
+var (
+	err         error
+	//定时任务的cron表达式
+	spec        = "0 0 5 * * ?"
+  // telegram Token
+	token       = "telegram Token"
+  // webhook url
+	webhookUrl  = "webhook url"
+  //webhook 端口  443, 80, 88, 8443
+	webhookPort = ":443"
+	serverCrt   = "server.crt"
+	serverKey   = "server.key"
+	//bot并发数
+	MaxConnections = 40
+	b           *tb.Bot
+)
+const (
+  //Mp4Box路径
+	Mp4BoxPath = "/root/gpac_public/bin/gcc/MP4Box"
+	//视频描述模板
+	captionTemplate = `标题: %s
+收藏: %s
+作者: %s `
+	//定时任务发送的群组Id
+	telegramId = -222222
+)
+
+````
+
+
 ### 运行
 
 ```
 go run main.go
 ```
 
+### 测试
 
+发送 /hello 到机器人
+
+得到回复  `Hello World!`
 
 
