@@ -1,5 +1,8 @@
 # pornbot_go
 
+
+### 软件安装
+
 环境 debian10
 
 #### 安装 ffmpeg
@@ -56,6 +59,12 @@ N: Download is performed unsandboxed as root as file '/root/pornbot/google-chrom
 debian10编译好的
 ```
 https://github.com/jw-star/myFigurebed/releases/download/1.00/gpac.tar.gz
+```
+
+### 运行
+
+```
+go run main.go
 ```
 
 
