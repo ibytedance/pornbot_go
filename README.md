@@ -63,8 +63,8 @@ https://github.com/jw-star/myFigurebed/releases/download/1.00/gpac.tar.gz
 
 
 ### 配置信息
-注意事项
-
+注意事项参考
+https://core.telegram.org/bots/api#setwebhook
 ```
 
 1.只要设置了传出 webhook，您就无法使用getUpdates接收更新。
@@ -134,5 +134,17 @@ go run main.go
 发送 /hello 到机器人
 
 得到回复  `Hello World!`
+
+
+### 鸣谢
+
+https://github.com/acmesh-official/acme.sh/wiki/%E8%AF%B4%E6%98%8E
+
+https://github.com/tucnak/telebot
+
+https://github.com/gocolly/colly
+
+https://github.com/chromedp/chromedp
+
 
 
