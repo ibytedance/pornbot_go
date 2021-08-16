@@ -134,6 +134,15 @@ go build main.go
 ./main -d=true
 ```
 
+杀死后台
+```
+ps -ef|grep main
+```
+
+```
+kill pid
+```
+
 
 ### 测试
 
