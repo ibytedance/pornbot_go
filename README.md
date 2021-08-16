@@ -15,7 +15,7 @@ apt install -y ffmpeg
 wget https://golang.org/dl/go1.16.7.linux-amd64.tar.gz
 ```
 
-解压 
+解压
 ```
 tar -C /usr/local -zxvf  go1.16.7.linux-amd64.tar.gz
 ```
