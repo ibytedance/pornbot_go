@@ -55,29 +55,31 @@ func main() {
 	log.Println("定时任务开启")
 	c.Start()
 	log.Println("bot开启")
-	b, err = tb.NewBot(tb.Settings{
-		Token: token,
-		Poller: &tb.Webhook{
-			Listen:         webhookPort,
-			MaxConnections: MaxConnections,
-			TLS: &tb.WebhookTLS{
-				Key:  serverKey,
-				Cert: serverCrt,
-			},
-			Endpoint: &tb.WebhookEndpoint{PublicURL: webhookUrl},
+	w := &tb.Webhook{
+		Listen:         webhookPort,
+		MaxConnections: MaxConnections,
+		TLS: &tb.WebhookTLS{
+			Key:  serverKey,
+			Cert: serverCrt,
 		},
+		Endpoint: &tb.WebhookEndpoint{PublicURL: webhookUrl},
+	}
+	b, err = tb.NewBot(tb.Settings{
+		Token:  token,
+		Poller: w,
 	})
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-
+	b.SetWebhook(w)
 	b.Handle("/start", func(m *tb.Message) {
 		b.Send(m.Sender, "向我发送91视频链接，获取视频")
 	})
 	b.Handle("/hello", func(m *tb.Message) {
 		b.Send(m.Sender, "Hello World!")
 	})
+
 	b.Handle(tb.OnText, func(m *tb.Message) {
 		text := m.Text
 		firstName := m.Sender.FirstName
@@ -101,17 +103,26 @@ func main() {
 
 }
 
+//匹配两个字符串之间的内容  rep模板 "字符串1(.*?)字符串2"
+func regexpUtil(rep string,content string) string {
+	compile := regexp.MustCompile(rep)
+	submatch := compile.FindAllStringSubmatch(content, -1)
+	for _, text := range submatch {
+		return text[1]
+	}
+	return ""
+}
+
 //controlSecPage 详情页爬取 发送视频
 func controlSecPage(url string, chatId int64) {
 	videoinfo, _ := BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body")
-	//fmt.Println(content)
-	reg, _ := regexp.Compile(`strencode2\((.*?)\)\)`)
-	findString := reg.FindString(videoinfo.HtmlContent)
-	findString = strings.Replace(findString, `strencode2("`, "", -1)
-	findString = strings.Replace(findString, `"))`, "", -1)
-	parser := JsParser("./md2.js", "strencode2", findString)
-	parser = strings.Replace(parser, `<source src='`, "", -1)
-	parser = strings.Replace(parser, `' type='application/x-mpegURL'>`, "", -1)
+	log.Println(videoinfo.HtmlContent)
+	parser := regexpUtil("strencode2\\((.*?)\\)\\)",videoinfo.HtmlContent )
+	log.Println(parser)
+	parser = JsParser("./md2.js", "strencode2", parser)
+	log.Println(parser)
+	parser= regexpUtil("src='(.*?)' type=", parser)
+	log.Println(parser)
 	if chatId != telegramId {
 		if parser == "" {
 			b.Send(&tb.Chat{
