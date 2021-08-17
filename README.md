@@ -86,12 +86,12 @@ https://core.telegram.org/bots/api#setwebhook
 ```
 
 证书申请
-
+根据 cloudflare dns申请 ，其他方法参考 https://github.com/acmesh-official/acme.sh/wiki/%E8%AF%B4%E6%98%8E
 ```
 
 curl  https://get.acme.sh | sh -s email=xxxxx@xxx.xxx
 
-根据dns申请 ，其他方法参考 https://github.com/acmesh-official/acme.sh/wiki/%E8%AF%B4%E6%98%8E
+
 export CF_Key="xxxxxx"
 
 export CF_Email="xxx@xxx.xxx"
