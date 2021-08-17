@@ -2,10 +2,10 @@ package BotUti
 
 import (
 	"encoding/json"
+	"github.com/matryer/try"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"log"
 	"strconv"
-	"github.com/matryer/try"
 )
 
 //ConVtoMp4 转换为mp4格式
@@ -23,9 +23,9 @@ func ConVtoMp4(videourl string, pathname string) (int,error) {
 	})
 	
 	//大于四分钟 截取前10秒 -rw_timeout 5000000
-	args := ffmpeg.KwArgs{"c:v": "libx264", "threads": "2","rw_timeout":"10000000"}
+	args := ffmpeg.KwArgs{"c:v": "libx264", "threads": "2","crf": "21" ,"rw_timeout":"10000000"}
 	if videoLen > 240 {
-		args = ffmpeg.KwArgs{"c:v": "libx264","threads": "2" ,"rw_timeout":"10000000","ss": "00:00:10"}
+		args = ffmpeg.KwArgs{"c:v": "libx264","threads": "2" ,"crf": "21" ,"rw_timeout":"10000000","ss": "00:00:10"}
 	}
 	err = try.Do(func(attempt int) (retry bool, err error) {
 		err = ffmpeg.Input(videourl).Output(pathname, args).OverWriteOutput().Run()

@@ -24,6 +24,10 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 		chromedp.Flag("blink-settings", "imagesEnabled=false"),
 		chromedp.UserAgent(`Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36`),
 		chromedp.Flag("mute-audio", false), // 关闭声音
+		//启动chrome 不适用沙盒, 性能优先
+		chromedp.Flag("no-sandbox", true),
+		//启动chrome的时候不检查默认浏览器
+		chromedp.Flag("no-default-browser-check", true),
 	}
 	//初始化参数，先传一个空的数据
 	options = append(chromedp.DefaultExecAllocatorOptions[:], options...)
@@ -32,6 +36,7 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 
 	// create context
 	chromeCtx, cancel := chromedp.NewContext(c, chromedp.WithLogf(log.Printf))
+	defer cancel()
 	// 执行一个空task, 用提前创建Chrome实例
 	var res string
 	err = chromedp.Run(chromeCtx, setheaders(
@@ -43,7 +48,7 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 	))
 
 	//创建一个上下文，超时时间为40s
-	timeoutCtx, cancel := context.WithTimeout(chromeCtx, 8*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(chromeCtx,40*time.Second)
 	defer cancel()
 
 	var videoInfo entity.VideoInfo
@@ -65,18 +70,18 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 		log.Println("Run err : %v\n", err)
 		return videoInfo, err
 	}
-	chromedp.Stop()
 	//去除 空格
 	videoInfo.Title = strings.Replace(videoInfo.Title, " ", "", -1)
 	// 去除换行符
 	videoInfo.Title = strings.Replace(videoInfo.Title, "\n", "", -1)
+	chromedp.Cancel(timeoutCtx)
 	return videoInfo, nil
 }
 // setheaders returns a task list that sets the passed headers.
 func setheaders(host string, headers map[string]interface{}, res *string) chromedp.Tasks {
 	return chromedp.Tasks{
 		network.Enable(),
-		network.SetExtraHTTPHeaders(network.Headers(headers)),
+		network.SetExtraHTTPHeaders(headers),
 		chromedp.Navigate(host),
 		chromedp.Text(`#result`, res, chromedp.ByID, chromedp.NodeVisible),
 	}

@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 )
+
 var (
 	err         error
 	//定时任务的cron表达式
@@ -35,16 +36,41 @@ var (
 	b           *tb.Bot
 )
 const (
-	Mp4BoxPath = "/root/gpac_public/bin/gcc/MP4Box"
-	//视频描述模板
+	Mp4BoxPath      = "/root/gpac_public/bin/gcc/MP4Box"
 	captionTemplate = `标题: %s
 收藏: %s
 作者: %s `
-	//定时任务发送的群组Id
-	telegramId = -222222
+	keyword  = "幼"
+	//telegramId = *****
+	telegramId = *********
 )
 
 
+func main() {
+	c := cron.New()
+	//定时任务
+	c.AddFunc(spec, func() {
+		cronTaskSendVideo()
+	})
+	log.Println("定时任务开启")
+	c.Start()
+	log.Println("bot开启")
+	b, err = tb.NewBot(tb.Settings{
+		Token: token,
+		Poller: &tb.Webhook{
+			Listen:         webhookPort,
+			MaxConnections: MaxConnections,
+			TLS: &tb.WebhookTLS{
+				Key:  serverKey,
+				Cert: serverCrt,
+			},
+			Endpoint: &tb.WebhookEndpoint{PublicURL: webhookUrl},
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
 	b.Handle("/start", func(m *tb.Message) {
 		b.Send(m.Sender, "向我发送91视频链接，获取视频")
@@ -52,28 +78,31 @@ const (
 	b.Handle("/hello", func(m *tb.Message) {
 		b.Send(m.Sender, "Hello World!")
 	})
-	b.Handle("/revideo", func(m *tb.Message) {
-		b.Send(m.Sender, "cronTaskSendVideo!")
-		cronTaskSendVideo()
-	})
 	b.Handle(tb.OnText, func(m *tb.Message) {
 		text := m.Text
-		log.Println("收到消息：" + text)
-		if strings.Contains(text,"viewkey") {
-			controlSecPage(text,m.Chat.ID)
-		}else {
-			b.Send(m.Sender, "请发送视频链接给我")
+		firstName := m.Sender.FirstName
+		lastName := m.Sender.LastName
+		log.Println("收到消息："+text, "   来自："+firstName)
+		if strings.Contains(text, "viewkey") {
+			controlSecPage(text, m.Chat.ID)
+		} else if strings.Contains(firstName, keyword) ||
+			strings.Contains(lastName, keyword)||
+			strings.Contains(text,keyword){
+			b.Delete(m)
+			send, _ := b.Send(m.Chat, "用户名或者内容违规，已删除")
+			time.Sleep(6 *time.Second)
+			b.Delete(send)
 		}
 
 	})
 	b.Start()
 
-	select {}  //阻塞主线程停止
+	select {} //阻塞主线程停止
 
 }
 
 //controlSecPage 详情页爬取 发送视频
-func controlSecPage(url string,chatId int64) {
+func controlSecPage(url string, chatId int64) {
 	videoinfo, _ := BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body")
 	//fmt.Println(content)
 	reg, _ := regexp.Compile(`strencode2\((.*?)\)\)`)
@@ -83,8 +112,8 @@ func controlSecPage(url string,chatId int64) {
 	parser := JsParser("./md2.js", "strencode2", findString)
 	parser = strings.Replace(parser, `<source src='`, "", -1)
 	parser = strings.Replace(parser, `' type='application/x-mpegURL'>`, "", -1)
-	if chatId != telegramId{
-		if parser=="" {
+	if chatId != telegramId {
+		if parser == "" {
 			b.Send(&tb.Chat{
 				ID: chatId,
 			}, "请检查视频地址是否正确")
@@ -103,7 +132,7 @@ func controlSecPage(url string,chatId int64) {
 	os.MkdirAll(title, 0755)
 
 	path := title + "/" + title + ".mp4"
-	videoinfo.Duration,err= BotUti.ConVtoMp4(parser, path)
+	videoinfo.Duration, err = BotUti.ConVtoMp4(parser, path)
 	if err != nil {
 		return
 	}
@@ -113,7 +142,7 @@ func controlSecPage(url string,chatId int64) {
 	filesize := getFileSize(path)
 	log.Println("视频大小：" + fmt.Sprintf("%f", filesize))
 	if filesize <= 50 {
-		sendVideo(title+".mp4", videoinfo,chatId)
+		sendVideo(title+".mp4", videoinfo, chatId)
 	} else {
 		//切割视频
 		cmd(path)
@@ -126,7 +155,7 @@ func controlSecPage(url string,chatId int64) {
 			if strings.Contains(file.Name(), title+"_") {
 				println(file.Name())
 				log.Println("触发发送")
-				sendVideo(file.Name(), videoinfo,chatId)
+				sendVideo(file.Name(), videoinfo, chatId)
 			}
 		}
 	}
@@ -136,14 +165,14 @@ func controlSecPage(url string,chatId int64) {
 //sendVideo
 //filename 文件名（切割视频后文件名）
 //videoinfo 视频信息
-func sendVideo(filename string, videoinfo entity.VideoInfo,chatId int64) {
+func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	log.Println("发送视频:" + filename)
 	path := videoinfo.Title + "/" + filename
 	videoLen, _ := BotUti.VideoLen(path)
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
 		Duration: videoLen,
-		Caption: fmt.Sprintf(captionTemplate, videoinfo.Title, videoinfo.ScCount, videoinfo.Author),
+		Caption:  fmt.Sprintf(captionTemplate, videoinfo.Title, videoinfo.ScCount, videoinfo.Author),
 
 		Thumbnail: &tb.Photo{
 			File: tb.FromDisk(videoinfo.Title + "/" + videoinfo.Title + ".jpg"),
@@ -202,24 +231,23 @@ func getFileSize(path string) float64 {
 
 func cronTaskSendVideo() {
 	log.Println("++++++++++++++定时任务开始+++++++++++++++++++")
-		c := colly.NewCollector()
-		// Find and visit all links
-		c.OnHTML("#wrapper > div.container.container-minheight > div.row > div > div > div > div", func(e *colly.HTMLElement) {
-			//fmt.Println(e.ChildAttr("a","href"))
-			log.Println(e.ChildText("a .video-title"))
-			url := e.ChildAttr("a", "href")
-			log.Println(url)
-			controlSecPage(url,telegramId)
+	c := colly.NewCollector()
+	// Find and visit all links
+	c.OnHTML("#wrapper > div.container.container-minheight > div.row > div > div > div > div", func(e *colly.HTMLElement) {
+		//fmt.Println(e.ChildAttr("a","href"))
+		log.Println(e.ChildText("a .video-title"))
+		url := e.ChildAttr("a", "href")
+		log.Println(url)
+		controlSecPage(url, telegramId)
 
-		})
+	})
 
-		c.OnRequest(func(r *colly.Request) {
-			r.Headers.Set("Accept-Language", "zh-CN,zh;q=0.9")
-			fmt.Println("Visiting", r.URL)
-		})
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("Accept-Language", "zh-CN,zh;q=0.9")
+		fmt.Println("Visiting", r.URL)
+	})
 
-		c.Visit("http://91porn.com/index.php")
-
+	c.Visit("http://91porn.com/index.php")
 
 	log.Println("++++++++++++++定时任务结束+++++++++++++++++++")
 }
