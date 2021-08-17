@@ -8,6 +8,18 @@ import (
 	"strconv"
 )
 
+
+const (
+	// Threads ffmpeg 线程数
+	threads = "2"
+
+	//crf 视频质量，越小质量越高，ffmpeg默认23
+	crf ="21"
+
+	//rw_timeout 超时时间 10s
+	rw_timeout = "10000000"
+)
+
 //ConVtoMp4 转换为mp4格式
 func ConVtoMp4(videourl string, pathname string) (int,error) {
 	var videoLen int
@@ -23,9 +35,9 @@ func ConVtoMp4(videourl string, pathname string) (int,error) {
 	})
 	
 	//大于四分钟 截取前10秒 -rw_timeout 5000000
-	args := ffmpeg.KwArgs{"c:v": "libx264", "threads": "2","crf": "21" ,"rw_timeout":"10000000"}
+	args := ffmpeg.KwArgs{"c:v": "libx264", "threads": threads ,"crf": crf ,"rw_timeout":rw_timeout}
 	if videoLen > 240 {
-		args = ffmpeg.KwArgs{"c:v": "libx264","threads": "2" ,"crf": "21" ,"rw_timeout":"10000000","ss": "00:00:10"}
+		args = ffmpeg.KwArgs{"c:v": "libx264","threads": threads ,"crf": crf ,"rw_timeout":rw_timeout,"ss": "00:00:10"}
 	}
 	err = try.Do(func(attempt int) (retry bool, err error) {
 		err = ffmpeg.Input(videourl).Output(pathname, args).OverWriteOutput().Run()
@@ -44,7 +56,7 @@ func ConVtoMp4(videourl string, pathname string) (int,error) {
 //VideoLen 获取视频时长 单位 s
 func VideoLen(url string) (int,error)  {
 	//获取视频信息
-	args := ffmpeg.KwArgs{"rw_timeout":"10000000"}
+	args := ffmpeg.KwArgs{"rw_timeout":rw_timeout}
 	probe, err := ffmpeg.Probe(url,args)
 	if err != nil {
 		return 0, err
