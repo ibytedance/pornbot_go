@@ -116,13 +116,9 @@ func regexpUtil(rep string,content string) string {
 //controlSecPage 详情页爬取 发送视频
 func controlSecPage(url string, chatId int64) {
 	videoinfo, _ := BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body")
-	log.Println(videoinfo.HtmlContent)
 	parser := regexpUtil("strencode2\\((.*?)\\)\\)",videoinfo.HtmlContent )
-	log.Println(parser)
 	parser = JsParser("./md2.js", "strencode2", parser)
-	log.Println(parser)
 	parser= regexpUtil("src='(.*?)' type=", parser)
-	log.Println(parser)
 	if chatId != telegramId {
 		if parser == "" {
 			b.Send(&tb.Chat{
@@ -164,44 +160,47 @@ func controlSecPage(url string, chatId int64) {
 		// 获取文件，并输出它们的名字
 		for _, file := range files {
 			if strings.Contains(file.Name(), title+"_") {
-				println(file.Name())
-				log.Println("触发发送")
+				size, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(file.Size())/float64(1024)/float64(1024)), 64)
+				log.Println("分割视频大小：",file.Name(),"-",size,"M")
 				sendVideo(file.Name(), videoinfo, chatId)
 			}
 		}
 	}
 
+	//删除临时文件夹
+	os.RemoveAll(videoinfo.Title)
 }
 
 //sendVideo
 //filename 文件名（切割视频后文件名）
 //videoinfo 视频信息
 func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
-	log.Println("发送视频:" + filename)
 	path := videoinfo.Title + "/" + filename
-	videoLen, _ := BotUti.VideoLen(path)
+	videoLen, err := BotUti.VideoLen(path)
+	if err!=nil {
+		panic(err)
+	}
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
 		Duration: videoLen,
-		Caption:  fmt.Sprintf(captionTemplate, videoinfo.Title, videoinfo.ScCount, videoinfo.Author),
-
+		Caption:  fmt.Sprintf(captionTemplate, strings.ReplaceAll(filename,"_","-"), videoinfo.ScCount, videoinfo.Author),
 		Thumbnail: &tb.Photo{
 			File: tb.FromDisk(videoinfo.Title + "/" + videoinfo.Title + ".jpg"),
 		},
-
 		SupportsStreaming: true,
 		FileName:          filename,
 	}
 
-	b.Send(&tb.Chat{
+	_, err  = b.Send(&tb.Chat{
 		ID: chatId,
 	}, v, tb.ModeMarkdown)
 
-	//删除临时文件夹
-	os.RemoveAll(videoinfo.Title)
+	if err != nil {
+		panic(err)
+	}
 }
 
-//cmd 执行 Mp4Box命令
+//cmd 执行 Mp4Box命令  /root/gpac_public/bin/gcc/MP4Box -splits 20176 aa.mp4 -out  aa%d.mp4
 func cmd(pathname string) {
 	//51200
 	cmd := exec.Command(Mp4BoxPath, "-splits", "51200", pathname)
@@ -234,7 +233,6 @@ func getFileSize(path string) float64 {
 	if err != nil {
 		return 0
 	}
-	log.Println(stat.Size())
 	num1, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(stat.Size())/float64(1024)/float64(1024)), 64)
 	return num1
 
@@ -246,9 +244,7 @@ func cronTaskSendVideo() {
 	// Find and visit all links
 	c.OnHTML("#wrapper > div.container.container-minheight > div.row > div > div > div > div", func(e *colly.HTMLElement) {
 		//fmt.Println(e.ChildAttr("a","href"))
-		log.Println(e.ChildText("a .video-title"))
 		url := e.ChildAttr("a", "href")
-		log.Println(url)
 		controlSecPage(url, telegramId)
 
 	})
