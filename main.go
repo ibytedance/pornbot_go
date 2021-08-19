@@ -171,6 +171,18 @@ func controlSecPage(url string, chatId int64) {
 	os.RemoveAll(videoinfo.Title)
 }
 
+//markdown转义字符处理
+// '_'、'*'、'`'、'['
+func escapeMarkDown(markdownStr string) string {
+	nowords := []string{"_","*","`","["}
+	for _, word := range nowords {
+		if strings.Contains(markdownStr,word) {
+			markdownStr=strings.ReplaceAll(markdownStr,word,"\\"+word);
+		}
+	}
+	return markdownStr
+}
+
 //sendVideo
 //filename 文件名（切割视频后文件名）
 //videoinfo 视频信息
@@ -183,7 +195,7 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
 		Duration: videoLen,
-		Caption:  fmt.Sprintf(captionTemplate, strings.ReplaceAll(filename,"_","-"), videoinfo.ScCount, videoinfo.Author),
+		Caption:  fmt.Sprintf(captionTemplate, escapeMarkDown(filename), videoinfo.ScCount, videoinfo.Author),
 		Thumbnail: &tb.Photo{
 			File: tb.FromDisk(videoinfo.Title + "/" + videoinfo.Title + ".jpg"),
 		},
