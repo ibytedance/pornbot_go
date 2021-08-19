@@ -1,6 +1,7 @@
 package BotUti
 
 import (
+	"errors"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
 	"golang.org/x/net/context"
@@ -18,7 +19,7 @@ var (
 // url 地址
 //selector 等待selector节点出现
 //sel 过滤内容
-func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.VideoInfo, error) {
+func GetHttpHtmlContent(url string, selector string, sel interface{},onProxy bool) (entity.VideoInfo, error) {
 	options := []chromedp.ExecAllocatorOption{
 		chromedp.Flag("headless", true), // debug使用
 		chromedp.Flag("blink-settings", "imagesEnabled=false"),
@@ -34,6 +35,7 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 
 	c, _ := chromedp.NewExecAllocator(context.Background(), options...)
 
+
 	// create context
 	chromeCtx, cancel := chromedp.NewContext(c, chromedp.WithLogf(log.Printf))
 	defer cancel()
@@ -43,6 +45,7 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 		"",
 		map[string]interface{}{
 			"Accept-Language": "zh-cn,zh;q=0.5",
+			"X-Forwarded-For":  genIpaddr(),
 		},
 		&res,
 	))
@@ -75,8 +78,15 @@ func GetHttpHtmlContent(url string, selector string, sel interface{}) (entity.Vi
 	// 去除换行符
 	videoInfo.Title = strings.Replace(videoInfo.Title, "\n", "", -1)
 	chromedp.Cancel(timeoutCtx)
-	return videoInfo, nil
+	parser := RegexpUtil("strencode2\\((.*?)\\)\\)",videoInfo.HtmlContent )
+	log.Println("爬取到的解码：",parser)
+	if parser=="" {
+		return videoInfo,errors.New("爬取内容失败")
+	}
+	return videoInfo, err
 }
+
+
 // setheaders returns a task list that sets the passed headers.
 func setheaders(host string, headers map[string]interface{}, res *string) chromedp.Tasks {
 	return chromedp.Tasks{

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/gocolly/colly"
-	"github.com/robertkrimen/otto"
+	"github.com/matryer/try"
 	"github.com/robfig/cron"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	tb "gopkg.in/tucnak/telebot.v2"
@@ -16,12 +16,10 @@ import (
 	"pornbot/entity"
 	"pornbot/util"
 	_ "pornbot/util"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
-
 var (
 	err         error
 	//定时任务的cron表达式
@@ -103,22 +101,28 @@ func main() {
 
 }
 
-//匹配两个字符串之间的内容  rep模板 "字符串1(.*?)字符串2"
-func regexpUtil(rep string,content string) string {
-	compile := regexp.MustCompile(rep)
-	submatch := compile.FindAllStringSubmatch(content, -1)
-	for _, text := range submatch {
-		return text[1]
-	}
-	return ""
-}
-
 //controlSecPage 详情页爬取 发送视频
 func controlSecPage(url string, chatId int64) {
-	videoinfo, _ := BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body")
-	parser := regexpUtil("strencode2\\((.*?)\\)\\)",videoinfo.HtmlContent )
-	parser = JsParser("./md2.js", "strencode2", parser)
-	parser= regexpUtil("src='(.*?)' type=", parser)
+	//videoinfo, err := BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body")
+	var videoinfo entity.VideoInfo
+	try.Do(func(attempt int) (retry bool, err error) {
+		flag:=false
+		if attempt>3 {
+			flag=true
+		}
+		videoinfo, err = BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body",flag)
+		if err !=nil{
+			log.Println("Run error,重试 - ", err,"-",attempt,"次")
+		} else {
+			log.Println("Run ok - ", "详情页爬取成功")
+		}
+		// 重试5次
+		return attempt < 5, err
+	})
+
+	parser := BotUti.RegexpUtil("strencode2\\((.*?)\\)\\)",videoinfo.HtmlContent )
+	parser = BotUti.JsParser("./md2.js", "strencode2", parser)
+	parser= BotUti.RegexpUtil("src='(.*?)' type=", parser)
 	if chatId != telegramId {
 		if parser == "" {
 			b.Send(&tb.Chat{
@@ -146,7 +150,7 @@ func controlSecPage(url string, chatId int64) {
 	//生成缩略图
 	ffmpeg.Input(path).Output(title+"/"+title+".jpg", ffmpeg.KwArgs{"vframes": "1"}).OverWriteOutput().Run()
 
-	filesize := getFileSize(path)
+	filesize := BotUti.GetFileSize(path)
 	log.Println("视频大小：" + fmt.Sprintf("%f", filesize))
 	if filesize <= 50 {
 		sendVideo(title+".mp4", videoinfo, chatId)
@@ -171,17 +175,7 @@ func controlSecPage(url string, chatId int64) {
 	os.RemoveAll(videoinfo.Title)
 }
 
-//markdown转义字符处理
-// '_'、'*'、'`'、'['
-func escapeMarkDown(markdownStr string) string {
-	nowords := []string{"_","*","`","["}
-	for _, word := range nowords {
-		if strings.Contains(markdownStr,word) {
-			markdownStr=strings.ReplaceAll(markdownStr,word,"\\"+word);
-		}
-	}
-	return markdownStr
-}
+
 
 //sendVideo
 //filename 文件名（切割视频后文件名）
@@ -195,7 +189,7 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
 		Duration: videoLen,
-		Caption:  fmt.Sprintf(captionTemplate, escapeMarkDown(filename), videoinfo.ScCount, videoinfo.Author),
+		Caption:  fmt.Sprintf(captionTemplate,BotUti.EscapeMarkDown(filename), videoinfo.ScCount, videoinfo.Author),
 		Thumbnail: &tb.Photo{
 			File: tb.FromDisk(videoinfo.Title + "/" + videoinfo.Title + ".jpg"),
 		},
@@ -210,6 +204,7 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	if err != nil {
 		panic(err)
 	}
+	log.Println("发送视频成功")
 }
 
 //cmd 执行 Mp4Box命令  /root/gpac_public/bin/gcc/MP4Box -splits 20176 aa.mp4 -out  aa%d.mp4
@@ -238,17 +233,7 @@ func cmd(pathname string) {
 	close(done)
 }
 
-//getFileSize  返回单位 M
-func getFileSize(path string) float64 {
 
-	stat, err := os.Stat(path)
-	if err != nil {
-		return 0
-	}
-	num1, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(stat.Size())/float64(1024)/float64(1024)), 64)
-	return num1
-
-}
 
 func cronTaskSendVideo() {
 	log.Println("++++++++++++++定时任务开始+++++++++++++++++++")
@@ -271,11 +256,3 @@ func cronTaskSendVideo() {
 	log.Println("++++++++++++++定时任务结束+++++++++++++++++++")
 }
 
-func JsParser(filePath string, functionName string, args ...interface{}) (result string) {
-	//读入文件
-	bytes, _ := ioutil.ReadFile(filePath)
-	vm := otto.New()
-	_, _ = vm.Run(string(bytes))
-	value, _ := vm.Call(functionName, nil, args...)
-	return value.String()
-}

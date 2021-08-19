@@ -1,11 +1,9 @@
 package BotUti
 
 import (
-	"encoding/json"
 	"github.com/matryer/try"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"log"
-	"strconv"
 )
 
 
@@ -57,25 +55,6 @@ func ConVtoMp4(videourl string, pathname string) (int,error) {
 	return videoLen,err
 }
 
-//VideoLen 获取视频时长 单位 s
-func VideoLen(url string) (int,error)  {
-	//获取视频信息
-	args := ffmpeg.KwArgs{"rw_timeout":rw_timeout}
-	probe, err := ffmpeg.Probe(url,args)
-	if err != nil {
-		return 0, err
-	}
-	var videoIf videoInfo
-	err = json.Unmarshal([]byte(probe), &videoIf)
-	if err != nil {
-		return 0, err
-	}
-	float, err := strconv.ParseFloat(videoIf.Format.Duration,64)
-	if err != nil {
-		return 0,err
-	}
-	return int(float),err
-}
 
 
 
