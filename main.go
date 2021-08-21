@@ -47,9 +47,7 @@ const (
 )
 
 func init() {
-	// 加载默认词典
-	seg.LoadDict()
-	addToken()
+	BotUti.Init()
 }
 
 func main() {
@@ -198,8 +196,7 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	newFileName := strings.ReplaceAll(filename, ".mp4", "")
 	title := BotUti.EscapeMarkDown(newFileName)
 	//中文分词
-	cut := seg.CutAll(newFileName)
-	words := seg.CutStr(cut, " ")
+	words := BotUti.CutWords(newFileName)
 	log.Println("分词结果: ", words)
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
@@ -222,16 +219,6 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	log.Println("发送视频成功")
 }
 
-func addToken() {
-
-	seg.AddToken("90后", 100,"n")
-	seg.AddToken("80后", 100,"n")
-	seg.AddToken("00后", 100,"n")
-	seg.AddToken("00年", 100,"n")
-	seg.AddToken("01年", 100,"n")
-	seg.AddToken("02年", 100,"n")
-
-}
 
 
 //cmd 执行 Mp4Box命令  /root/gpac_public/bin/gcc/MP4Box -splits 20176 aa.mp4 -out  aa%d.mp4
