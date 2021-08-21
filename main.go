@@ -1,13 +1,15 @@
 package main
 
+
 import (
 	"bytes"
 	"fmt"
+	"github.com/go-ego/gse"
 	"github.com/gocolly/colly"
 	"github.com/matryer/try"
-	"github.com/robfig/cron"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	tb "gopkg.in/tucnak/telebot.v2"
+	"github.com/robfig/cron"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,6 +23,7 @@ import (
 	"time"
 )
 var (
+	seg    gse.Segmenter
 	err         error
 	//定时任务的cron表达式
 	spec        = "0 0 5 * * ?"
@@ -43,6 +46,11 @@ const (
 	telegramId = *********
 )
 
+func init() {
+	// 加载默认词典
+	seg.LoadDict()
+	addToken()
+}
 
 func main() {
 	c := cron.New()
@@ -183,13 +191,20 @@ func controlSecPage(url string, chatId int64) {
 func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	path := videoinfo.Title + "/" + filename
 	videoLen, err := BotUti.VideoLen(path)
+
 	if err!=nil {
 		panic(err)
 	}
+	newFileName := strings.ReplaceAll(filename, ".mp4", "")
+	title := BotUti.EscapeMarkDown(newFileName)
+	//中文分词
+	cut := seg.CutAll(newFileName)
+	words := seg.CutStr(cut, " ")
+	log.Println("分词结果: ", words)
 	v := &tb.Video{
 		File:     tb.FromDisk(path),
 		Duration: videoLen,
-		Caption:  fmt.Sprintf(captionTemplate,BotUti.EscapeMarkDown(filename), videoinfo.ScCount, videoinfo.Author),
+		Caption:  fmt.Sprintf(captionTemplate, title, videoinfo.ScCount,videoinfo.Author, BotUti.EscapeMarkDown(words)),
 		Thumbnail: &tb.Photo{
 			File: tb.FromDisk(videoinfo.Title + "/" + videoinfo.Title + ".jpg"),
 		},
@@ -206,6 +221,18 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	}
 	log.Println("发送视频成功")
 }
+
+func addToken() {
+
+	seg.AddToken("90后", 100,"n")
+	seg.AddToken("80后", 100,"n")
+	seg.AddToken("00后", 100,"n")
+	seg.AddToken("00年", 100,"n")
+	seg.AddToken("01年", 100,"n")
+	seg.AddToken("02年", 100,"n")
+
+}
+
 
 //cmd 执行 Mp4Box命令  /root/gpac_public/bin/gcc/MP4Box -splits 20176 aa.mp4 -out  aa%d.mp4
 func cmd(pathname string) {
@@ -248,7 +275,7 @@ func cronTaskSendVideo() {
 
 	c.OnRequest(func(r *colly.Request) {
 		r.Headers.Set("Accept-Language", "zh-CN,zh;q=0.9")
-		fmt.Println("Visiting", r.URL)
+		log.Println("Visiting", r.URL)
 	})
 
 	c.Visit("http://91porn.com/index.php")
