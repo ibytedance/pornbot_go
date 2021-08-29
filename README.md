@@ -89,7 +89,7 @@ var (
 	b           *tb.Bot
 )
 const (
-  //Mp4Box路径
+  //Mp4Box路径（docker镜像已包含）
 	Mp4BoxPath = "/root/gpac_public/bin/gcc/MP4Box"
 	//视频描述模板
 	captionTemplate = `标题: %s
