@@ -37,7 +37,7 @@ var (
 	b           *tb.Bot
 )
 const (
-	Mp4BoxPath      = "/root/gpac_public/bin/gcc/MP4Box"
+	Mp4BoxPath      = "/gpac_public/bin/gcc/MP4Box"
 	captionTemplate = `标题: %s
 收藏: %s
 作者: %s `
