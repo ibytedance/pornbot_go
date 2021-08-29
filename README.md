@@ -37,7 +37,7 @@ curl -fsSL get.docker.com -o get-docker.sh && sh get-docker.sh --mirror Aliyun&&
 #### 启动docker
 
 ```
-docker run -d -i -p 443:443 -v /pornbot:/home --name pornbot jwstar/pornbot_tg
+docker run -d -i -p 443:443 -v /pornbot:/home --restart=always --name pornbot jwstar/pornbot_tg
 ```
 
 
