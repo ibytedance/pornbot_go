@@ -16,7 +16,17 @@ func Init() {
 
 //CutWords 中文分词
 func CutWords(string string)  string{
+	return seg.CutStr(DeleteSlice2(seg.CutAll(string)), " ")
+}
 
-	cut := seg.CutAll(string)
-	return seg.CutStr(cut, " ")
+//DeleteSlice2 删除单个汉字
+func DeleteSlice2(a []string) []string{
+	j := 0
+	for _, val := range a {
+		if len(val) != 3 {
+			a[j] = val
+			j++
+		}
+	}
+	return a[:j]
 }
