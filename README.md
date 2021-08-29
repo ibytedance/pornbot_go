@@ -39,7 +39,16 @@ curl -fsSL get.docker.com -o get-docker.sh && sh get-docker.sh --mirror Aliyun&&
 ```
 docker run -d -i -p 443:443 -v /pornbot:/home --restart=always --name pornbot jwstar/pornbot_tg
 ```
+#### 常用docker命令
 
+```
+删除容器
+docker rm -f pornbot
+删除镜像
+docker rmi jwstar/pornbot_tg
+进入容器
+docker exec -it pornbot /bin/bash
+```
 
 ### 配置信息
 注意事项参考
