@@ -59,31 +59,25 @@ func main() {
 	log.Println("定时任务开启")
 	c.Start()
 	log.Println("bot开启")
-	w := &tb.Webhook{
-		Listen:         webhookPort,
-		MaxConnections: MaxConnections,
-		TLS: &tb.WebhookTLS{
-			Key:  serverKey,
-			Cert: serverCrt,
-		},
-		Endpoint: &tb.WebhookEndpoint{PublicURL: webhookUrl},
-	}
 	b, err = tb.NewBot(tb.Settings{
 		Token:  token,
-		Poller: w,
+		Poller: &tb.Webhook{
+			Listen:         webhookPort,
+			MaxConnections: MaxConnections,
+			TLS: &tb.WebhookTLS{
+				Key:  serverKey,
+				Cert: serverCrt,
+			},
+			Endpoint: &tb.WebhookEndpoint{PublicURL: webhookUrl},
+		},
 	})
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	b.SetWebhook(w)
 	b.Handle("/start", func(m *tb.Message) {
-		b.Send(m.Sender, "向我发送91视频链接，获取视频")
+		b.Send(m.Sender, `向我发送91视频链接，获取视频,有问题请留言 @bzhzq`)
 	})
-	b.Handle("/hello", func(m *tb.Message) {
-		b.Send(m.Sender, "Hello World!")
-	})
-
 	b.Handle(tb.OnText, func(m *tb.Message) {
 		text := m.Text
 		firstName := m.Sender.FirstName
@@ -107,9 +101,9 @@ func main() {
 
 }
 
+
 //controlSecPage 详情页爬取 发送视频
 func controlSecPage(url string, chatId int64) {
-	//videoinfo, err := BotUti.GetHttpHtmlContent(url, "#useraction > div:nth-child(1) > span:nth-child(2)", "body")
 	var videoinfo entity.VideoInfo
 	try.Do(func(attempt int) (retry bool, err error) {
 		flag:=false
@@ -156,7 +150,8 @@ func controlSecPage(url string, chatId int64) {
 	//生成缩略图
 	ffmpeg.Input(path).Output(title+"/"+title+".jpg", ffmpeg.KwArgs{"vframes": "1"}).OverWriteOutput().Run()
 
-	filesize := BotUti.GetFileSize(path)
+	filesize := 0.0
+	filesize, err = BotUti.GetFileSize(path)
 	log.Println("视频大小：" + fmt.Sprintf("%f", filesize))
 	if filesize <= 50 {
 		sendVideo(title+".mp4", videoinfo, chatId)
@@ -188,8 +183,8 @@ func controlSecPage(url string, chatId int64) {
 //videoinfo 视频信息
 func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 	path := videoinfo.Title + "/" + filename
-	videoLen, err := BotUti.VideoLen(path)
-
+	videoLen,w,h, err := BotUti.VideoLen(path)
+	log.Println("视频宽度：",w)
 	if err!=nil {
 		panic(err)
 	}
@@ -207,6 +202,8 @@ func sendVideo(filename string, videoinfo entity.VideoInfo, chatId int64) {
 		},
 		SupportsStreaming: true,
 		FileName:          filename,
+		Width: w,
+		Height: h,
 	}
 
 	_, err  = b.Send(&tb.Chat{

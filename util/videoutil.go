@@ -22,7 +22,7 @@ const (
 func ConVtoMp4(videourl string, pathname string) (int,error) {
 	var videoLen int
 	try.Do(func(attempt int) (retry bool, err error) {
-		videoLen, err = VideoLen(videourl)
+		videoLen,_,_, err = VideoLen(videourl)
 		if err !=nil{
 			log.Println("Run error,重试 - ", err,"-",attempt,"次")
 		} else {

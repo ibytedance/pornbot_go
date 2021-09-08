@@ -6,7 +6,6 @@ import (
 	"github.com/robertkrimen/otto"
 	ffmpeg "github.com/u2takey/ffmpeg-go"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"os"
 	"regexp"
@@ -18,9 +17,7 @@ import (
 //genIpaddr 随机ip
 func genIpaddr() string {
 	rand.Seed(time.Now().Unix())
-	ip := fmt.Sprintf("%d.%d.%d.%d", rand.Intn(255), rand.Intn(255), rand.Intn(255), rand.Intn(255))
-	log.Println(ip)
-	return ip
+	return fmt.Sprintf("%d.%d.%d.%d", rand.Intn(255), rand.Intn(255), rand.Intn(255), rand.Intn(255))
 }
 //RegexpUtil 匹配两个字符串之间的内容  rep模板 "字符串1(.*?)字符串2"
 func RegexpUtil(rep string,content string) string {
@@ -32,24 +29,26 @@ func RegexpUtil(rep string,content string) string {
 	return ""
 }
 
-//VideoLen 获取视频时长 单位 s
-func VideoLen(url string) (int,error)  {
+//VideoLen 获取视频 时长单位 s 宽度 高度
+func VideoLen(url string) (int,int,int,error)  {
 	//获取视频信息
 	args := ffmpeg.KwArgs{"rw_timeout":rw_timeout}
 	probe, err := ffmpeg.Probe(url,args)
 	if err != nil {
-		return 0, err
+		return 0,0,0, err
 	}
 	var videoIf videoInfo
 	err = json.Unmarshal([]byte(probe), &videoIf)
 	if err != nil {
-		return 0, err
+		return 0,0,0, err
 	}
 	float, err := strconv.ParseFloat(videoIf.Format.Duration,64)
+	width := videoIf.Streams[0].Width
+	height := videoIf.Streams[0].Height
 	if err != nil {
-		return 0,err
+		return 0,0,0, err
 	}
-	return int(float),err
+	return int(float),width,height,err
 }
 
 
@@ -65,15 +64,12 @@ func EscapeMarkDown(markdownStr string) string {
 }
 
 //GetFileSize 返回单位 M
-func GetFileSize(path string) float64 {
-
+func GetFileSize(path string) (float64,error) {
 	stat, err := os.Stat(path)
 	if err != nil {
-		return 0
+		return 0,err
 	}
-	num1, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(stat.Size())/float64(1024)/float64(1024)), 64)
-	return num1
-
+	return strconv.ParseFloat(fmt.Sprintf("%.2f", float64(stat.Size())/float64(1024)/float64(1024)), 64)
 }
 
 //JsParser 执行js文件
